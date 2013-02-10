@@ -5,7 +5,7 @@
 ** Login   <ignati_i@epitech.net>
 ** 
 ** Started on  Thu Jan 31 13:15:48 2013 ivan ignatiev
-** Last update Sun Feb 10 16:36:48 2013 ivan ignatiev
+** Last update Sun Feb 10 17:01:03 2013 ivan ignatiev
 */
 
 #include		"static.h"
@@ -219,7 +219,7 @@ static void		*realloc_same_place(t_malloc_head *p, size_t size)
   malloc_fragment(p->addr, &size);
   p->size_next = size;
   MALLOC_UNLOCK();
-  return (p->addr);
+  return (p->addr + _HEADER_SIZE);
 }
 
 static void		*realloc_edge(t_malloc_head *p, size_t size)
@@ -231,7 +231,7 @@ static void		*realloc_edge(t_malloc_head *p, size_t size)
       if ( p->addr + size + _HEADER_SIZE > g_memory_brk)
 	g_memory_brk = p->addr + size + _HEADER_SIZE;
       MALLOC_UNLOCK();
-      return (p->addr);
+      return (p->addr + _HEADER_SIZE);
     }
   MALLOC_UNLOCK();
   return (NULL);
@@ -275,18 +275,27 @@ void			*realloc(void *ptr, size_t size)
   return (NULL);
 }
 
+static void		memalign_fragment(void *addr, ssize_t *aligment,
+					  size_t prev_size, t_malloc_head *prev_block)
+{
+  if (*aligment > (ssize_t)(2 * _HEADER_SIZE)
+      && malloc_edges(addr, (size_t) *aligment))
+    malloc_put_info(addr, 0, (size_t) *aligment, prev_size);
+  else
+    {
+      *aligment = prev_size;
+      if (prev_block)
+	prev_block->size_next = *aligment;
+    }
+}
 
-
-void			*memalign(size_t boundary, size_t size)
+static void		*memalign_address(ssize_t *aligment, size_t boundary)
 {
   void			*addr;
   void			*aligned_addr;
-  ssize_t		delta_size;
   t_malloc_head		*prev_block;
   size_t		prev_size;
 
-  if (!malloc_init() || size == 0)
-    return (NULL);
   prev_block = malloc_search_lastblock(g_memory_begin);
   if (prev_block)
     {
@@ -301,24 +310,20 @@ void			*memalign(size_t boundary, size_t size)
   aligned_addr = (void*)malloc_align((size_t)addr, boundary) - _HEADER_SIZE;
   if (aligned_addr < g_memory_begin)
     aligned_addr += boundary;
-  delta_size = aligned_addr - addr - _HEADER_SIZE;
+  *aligment = aligned_addr - addr - _HEADER_SIZE;
+  memalign_fragment(addr, aligment, prev_size, prev_block);
+  return (aligned_addr);
+}
+
+void			*memalign(size_t boundary, size_t size)
+{
+  void			*aligned_addr;
+  ssize_t		delta_size;
+
+  if (!malloc_init() || size == 0)
+    return (NULL);
   MALLOC_LOCK();
-  if (delta_size > (ssize_t)(2 * _HEADER_SIZE))
-    {
-      if (malloc_edges(addr, (size_t) delta_size))
-	malloc_put_info(addr, 0, (size_t) delta_size, prev_size);
-      else
-	{
-	  MALLOC_UNLOCK();
-	  return (NULL);
-	}
-    }
-  else
-    {
-      delta_size = prev_size;
-      if (prev_block)
-	prev_block->size_next = delta_size;
-    }
+  aligned_addr = memalign_address(&delta_size, boundary);
   size = malloc_align(size + delta_size + 1, MALLOC_BOUNDARY);
   if (malloc_edges(aligned_addr, size))
     {
