@@ -5,30 +5,38 @@
 ## Login   <ignati_i@epitech.net>
 ##
 ## Started on  Thu Jan 31 13:09:48 2013 Ivan Ignatiev
-## Last update Sun Feb 10 18:47:32 2013 Kuznietsov Oleg
+## Last update Sun Feb 10 20:05:29 2013 ivan ignatiev
 ##
 
-SRCS	= 	malloc.c
+SRCS	= 	malloc.c \
+		malloc_init.c \
+		malloc_nav.c \
+		memalign.c \
+		realloc.c \
+		calloc.c \
+		show_mem.c \
+		free.c
 
 LNAME	= 	libmy_malloc_$(HOSTTYPE).so
+LINKN	=	libmy_malloc.so
 
 CC	= 	cc
 
-CFLAGS	+=	-Wall -Wextra -Werror -fPIC -lpthread -g
-
-OBJS	=	$(SRCS:.c=.o)
+TMPNAME	=	malloc.tmp.c
 
 RM	=	rm -f
 
 all: 		$(LNAME)
 
-$(LNAME): 	$(OBJS)
-	  	$(CC) -fPIC -shared $(OBJS) -o $(LNAME)
+$(LNAME): 	$(SRCS)
+		cat $(SRCS) > $(TMPNAME)
+	  	$(CC) -fPIC -shared -Wall -Wextra -Werror -fPIC -lpthread $(TMPNAME) -o $(LNAME)
+		ln $(LNAME) $(LINKN)
 
 clean:
-		$(RM) $(OBJS)
-
+		$(RM) $(TMPNAME)
 fclean: 	clean
+		$(RM) $(LINKN)
 		$(RM) $(LNAME)
 
 re: 		fclean all

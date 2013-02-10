@@ -1,11 +1,11 @@
 /*
 ** malloc.h for malloc in /home/ignati_i/projects/malloc
 ** 
-** Made by Ivan Ignatiev
+** Made by ivan ignatiev
 ** Login   <ignati_i@epitech.net>
 ** 
-** Started on  Thu Jan 31 17:13:28 2013 Ivan Ignatiev
-** Last update Sun Feb 10 18:23:37 2013 Kuznietsov Oleg
+** Started on  Thu Jan 31 17:13:28 2013 ivan ignatiev
+** Last update Sun Feb 10 19:48:56 2013 ivan ignatiev
 */
 
 #ifndef MALLOC_H_
