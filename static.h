@@ -5,7 +5,7 @@
 ** Login   <ignati_i@epitech.net>
 ** 
 ** Started on  Sun Feb 10 15:40:12 2013 ivan ignatiev
-** Last update Sun Feb 10 17:36:02 2013 ivan ignatiev
+** Last update Sun Feb 10 19:51:10 2013 oleg kuznetsov
 */
 
 #ifndef STATIC_H_

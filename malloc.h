@@ -5,7 +5,7 @@
 ** Login   <ignati_i@epitech.net>
 ** 
 ** Started on  Thu Jan 31 17:13:28 2013 ivan ignatiev
-** Last update Sun Feb 10 19:48:56 2013 ivan ignatiev
+** Last update Sun Feb 10 19:53:29 2013 oleg kuznietsov
 */
 
 #ifndef MALLOC_H_
