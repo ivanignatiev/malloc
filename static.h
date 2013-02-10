@@ -27,7 +27,7 @@ typedef struct	s_malloc_head
 # define _HEADER_SIZE		sizeof(t_malloc_head)
 # define _SBRK_FAIL		(void*)-1
 # define MALLOC_LOCK()		pthread_mutex_lock(&g_malloc_mutex)
-# define MALLOC_UNLOCK()	pthread_mutex_unlock(g_&malloc_mutex)
+# define MALLOC_UNLOCK()	pthread_mutex_unlock(&g_malloc_mutex)
 # define MALLOC_BOUNDARY	sizeof(void*)
 
 static void		*g_memory_begin	= NULL;
@@ -39,12 +39,12 @@ static void		malloc_memcpy(void *dest, void *src, size_t size);
 static size_t		malloc_align(size_t size, size_t boundary);
 static int		malloc_init();
 static int		malloc_edges(void *addr, size_t alloc_size);
-static malloc_head_t	*malloc_get_info(void *ptr);
-static malloc_head_t	*malloc_goto_next(t_malloc_head *head);
-static malloc_head_t	*malloc_goto_prev(t_malloc_head *head);
+static t_malloc_head	*malloc_get_info(void *ptr);
+static t_malloc_head	*malloc_goto_next(t_malloc_head *head);
+static t_malloc_head	*malloc_goto_prev(t_malloc_head *head);
 static void		malloc_put_info(void *ptr, char alloc,
 					size_t size_next, size_t size_prev);
-static void		malloc_fragment(malloc_head_t *start, size_t *size);
+static void		malloc_fragment(t_malloc_head *start, size_t *size);
 static void		*malloc_search_freespace(void *start, size_t *size,
 						 size_t *prev_size);
 

@@ -34,12 +34,12 @@ static size_t		malloc_align(size_t size, size_t boundary)
 
 static int		malloc_init()
 {
-  if (memory_begin == NULL)
+  if (g_memory_begin == NULL)
     {
-      if ((memory_begin = sbrk(0)) == _SBRK_FAIL)
+      if ((g_memory_begin = sbrk(0)) == _SBRK_FAIL)
 	return (0);
-      memory_brk = memory_begin;
-      memory_end = memory_begin;
+      g_memory_brk = g_memory_begin;
+      g_memory_end = g_memory_begin;
     }
   return (1);
 }
@@ -50,53 +50,53 @@ static int		malloc_edges(void *addr, size_t alloc_size)
   int			pages_count;
   size_t		delta_size;
 
-  if (addr + alloc_size < memory_brk)
+  if (addr + alloc_size < g_memory_brk)
     return (1);
-  delta_size = addr + alloc_size - memory_brk;
-  if (memory_end >  memory_brk + delta_size)
+  delta_size = addr + alloc_size - g_memory_brk;
+  if (g_memory_end >  g_memory_brk + delta_size)
     {
-      memory_brk += delta_size;
+      g_memory_brk += delta_size;
       return (1);
     }
-  pages_count = (memory_brk + delta_size - memory_end);
+  pages_count = (g_memory_brk + delta_size - g_memory_end);
   if (pages_count > 0)
     {
       page_size = getpagesize();
       pages_count = pages_count / page_size + 1;
       if (sbrk(page_size * pages_count) != _SBRK_FAIL)
-	memory_end += page_size * pages_count;
+	g_memory_end += page_size * pages_count;
       else
 	return (0);
     }
   return (1);
 }
 
-static malloc_head_t	*malloc_get_info(void *ptr)
+static t_malloc_head	*malloc_get_info(void *ptr)
 {
-  malloc_head_t         *head;
+  t_malloc_head         *head;
 
-  if (ptr != NULL && ptr >= memory_begin
-      && ptr + _HEADER_SIZE < memory_brk)
+  if (ptr != NULL && ptr >= g_memory_begin
+      && ptr + _HEADER_SIZE < g_memory_brk)
   {
-    head = (malloc_head_t*)ptr;
+    head = (t_malloc_head*)ptr;
     if (head->addr == ptr)
       return (head);
   }
   return (NULL);
 }
 
-static malloc_head_t	*malloc_goto_next(malloc_head_t *head)
+static t_malloc_head	*malloc_goto_next(t_malloc_head *head)
 {
-  if (head != NULL && ((void*)head + _HEADER_SIZE) < memory_brk
+  if (head != NULL && ((void*)head + _HEADER_SIZE) < g_memory_brk
       && head->addr == head)
     return (head->addr + _HEADER_SIZE + head->size_next);
   else
     return (NULL);
 }
 
-static malloc_head_t	*malloc_goto_prev(malloc_head_t *head)
+static t_malloc_head	*malloc_goto_prev(t_malloc_head *head)
 {
-  if (head != NULL && ((void*)head) > memory_begin
+  if (head != NULL && ((void*)head) > g_memory_begin
       && head->addr == (void*)head)
     return (head->addr - _HEADER_SIZE - head->size_prev);
   else
@@ -106,7 +106,7 @@ static malloc_head_t	*malloc_goto_prev(malloc_head_t *head)
 static void		malloc_put_info(void *ptr, char alloc,
 					size_t size_next, size_t size_prev)
 {
-  malloc_head_t		head;
+  t_malloc_head		head;
 
   head.addr = ptr;
   head.size_next = size_next;
@@ -115,10 +115,10 @@ static void		malloc_put_info(void *ptr, char alloc,
   malloc_memcpy(head.addr, &head, _HEADER_SIZE);
 }
 
-static void		malloc_fragment(malloc_head_t *start, size_t *size)
+static void		malloc_fragment(t_malloc_head *start, size_t *size)
 {
   ssize_t		size_next;
-  malloc_head_t		*next;
+  t_malloc_head		*next;
   void			*addr;
 
   size_next = start->size_next - *size - _HEADER_SIZE;
@@ -136,8 +136,8 @@ static void		malloc_fragment(malloc_head_t *start, size_t *size)
 static void		*malloc_search_freespace(void *start, size_t *size,
 						 size_t *prev_size)
 {
-  malloc_head_t		*next;
-  malloc_head_t		*nav;
+  t_malloc_head		*next;
+  t_malloc_head		*nav;
 
   next = start;
   *prev_size = 0;
@@ -154,10 +154,10 @@ static void		*malloc_search_freespace(void *start, size_t *size,
   return (next);
 }
 
-static malloc_head_t	*malloc_search_lastblock(void *start)
+static t_malloc_head	*malloc_search_lastblock(void *start)
 {
-  malloc_head_t		*next;
-  malloc_head_t		*nav;
+  t_malloc_head		*next;
+  t_malloc_head		*nav;
 
   next = start;
   while (malloc_get_info(next) != NULL)
@@ -180,13 +180,13 @@ void			*malloc(size_t size)
     {
       size = malloc_align(size, MALLOC_BOUNDARY);
       MALLOC_LOCK();
-      addr = malloc_search_freespace(memory_begin, &size, &size_prev);
+      addr = malloc_search_freespace(g_memory_begin, &size, &size_prev);
       alloc_size = size + _HEADER_SIZE;
       if (malloc_edges(addr, alloc_size))
 	{
 	  malloc_put_info(addr, 1, size, size_prev);
-	  if (addr + alloc_size > memory_brk)
-            memory_brk = addr + alloc_size;
+	  if (addr + alloc_size > g_memory_brk)
+            g_memory_brk = addr + alloc_size;
 	  MALLOC_UNLOCK();
 	  return (addr + _HEADER_SIZE);
 	}
@@ -215,7 +215,7 @@ void			*calloc(size_t num, size_t size)
 
 void			*realloc(void *ptr, size_t size)
 {
-  malloc_head_t		*p;
+  t_malloc_head		*p;
   void			*addr;
 
   size = malloc_align(size, MALLOC_BOUNDARY);
@@ -242,8 +242,8 @@ void			*realloc(void *ptr, size_t size)
 	  if (malloc_edges( p->addr,  size + _HEADER_SIZE ) )
 	    {
 	      p->size_next = size;
-	      if ( p->addr + size + _HEADER_SIZE > memory_brk)
-		memory_brk = p->addr + size + _HEADER_SIZE;
+	      if ( p->addr + size + _HEADER_SIZE > g_memory_brk)
+		g_memory_brk = p->addr + size + _HEADER_SIZE;
 	      MALLOC_UNLOCK();
 	      return (ptr);
 	    }
@@ -265,12 +265,12 @@ void			*memalign(size_t boundary, size_t size)
   void			*addr;
   void			*aligned_addr;
   ssize_t		delta_size;
-  malloc_head_t		*prev_block;
+  t_malloc_head		*prev_block;
   size_t		prev_size;
 
   if (!malloc_init() || size == 0)
     return (NULL);
-  prev_block = malloc_search_lastblock(memory_begin);
+  prev_block = malloc_search_lastblock(g_memory_begin);
   if (prev_block)
     {
       prev_size = prev_block->size_next;
@@ -278,11 +278,11 @@ void			*memalign(size_t boundary, size_t size)
     }
   else
     {
-      addr = memory_begin;
+      addr = g_memory_begin;
       prev_size = 0;
     }
   aligned_addr = (void*)malloc_align((size_t)addr, boundary) - _HEADER_SIZE;
-  if (aligned_addr < memory_begin)
+  if (aligned_addr < g_memory_begin)
     aligned_addr += boundary;
   delta_size = aligned_addr - addr - _HEADER_SIZE;
   MALLOC_LOCK();
@@ -308,8 +308,8 @@ void			*memalign(size_t boundary, size_t size)
   if (malloc_edges(aligned_addr, size))
     {
       malloc_put_info(aligned_addr, 1, size, delta_size);
-      if (aligned_addr + size + _HEADER_SIZE > memory_brk)
-	memory_brk = aligned_addr + size + _HEADER_SIZE;
+      if (aligned_addr + size + _HEADER_SIZE > g_memory_brk)
+	g_memory_brk = aligned_addr + size + _HEADER_SIZE;
       MALLOC_UNLOCK();
       return (aligned_addr + _HEADER_SIZE);
     }
@@ -333,10 +333,10 @@ void			*valloc(size_t size)
   return (memalign(getpagesize(), size));
 }
 
-static void		*merge_freespace(malloc_head_t *head)
+static void		*merge_freespace(t_malloc_head *head)
 {
   size_t		value;
-  malloc_head_t		*merged;
+  t_malloc_head		*merged;
 
   merged = head;
   value = head->size_next;
@@ -358,8 +358,8 @@ static void		*merge_freespace(malloc_head_t *head)
 
 void			free(void *ptr)
 {
-  malloc_head_t		*head;
-  malloc_head_t		*next;
+  t_malloc_head		*head;
+  t_malloc_head		*next;
   unsigned long		edge;
   int			page_size;
 
@@ -371,13 +371,13 @@ void			free(void *ptr)
     head = merge_freespace(head);
     if ( (next = malloc_get_info( malloc_goto_next(head) ) ) == NULL)
       {
-	memory_brk = head;
+	g_memory_brk = head;
 	page_size = getpagesize();
-	edge = (size_t) memory_brk / page_size;
-	if ( (size_t) memory_brk % page_size )
+	edge = (size_t) g_memory_brk / page_size;
+	if ( (size_t) g_memory_brk % page_size )
 	  ++edge;
-	memory_end = ((void*)(page_size * edge));
-	brk(memory_end);
+	g_memory_end = ((void*)(page_size * edge));
+	brk(g_memory_end);
       }
     else
       next->size_prev = head->size_next;
@@ -387,10 +387,10 @@ void			free(void *ptr)
 
 void			show_alloc_mem_detail()
 {
-  malloc_head_t		*next;
+  t_malloc_head		*next;
 
-  printf(stdout, "break : %p\n", memory_end);
-  next = memory_begin;
+  printf(stdout, "break : %p\n", g_memory_end);
+  next = g_memory_begin;
   while ((next = malloc_get_info(next)) != NULL)
     {
       printf("%p - %p : %lu bytes\n",
@@ -399,16 +399,16 @@ void			show_alloc_mem_detail()
 	     next->size_next);
       next = malloc_goto_next(next);
     }
-  printf("end : %p (sysbrk: %p) (%lu)\n", memory_brk, memory_end,
-	 (memory_end - memory_begin) / getpagesize());
+  printf("end : %p (sysbrk: %p) (%lu)\n", g_memory_brk, g_memory_end,
+	 (g_memory_end - g_memory_begin) / getpagesize());
 }
 
 void			show_alloc_mem_detail()
 {
-  malloc_head_t		*next;
+  t_malloc_head		*next;
 
-  printf(stdout, "begin : %p\n", memory_begin);
-  next = memory_begin;
+  printf(stdout, "begin : %p\n", g_memory_begin);
+  next = g_memory_begin;
   while ((next = malloc_get_info(next)) != NULL)
     {
       printf("A(%d, %p) SIZE : %lu, PREV : %lu, MEM: %p - %p (%lu)\n",
@@ -421,7 +421,7 @@ void			show_alloc_mem_detail()
 	     (next->size_next + _HEADER_SIZE));
       next = malloc_goto_next(next);
     }
-  printf("end : %p (sysbrk: %p) (%lu)\n", memory_brk, memory_end,
-	 (memory_end - memory_begin) / getpagesize());
+  printf("end : %p (sysbrk: %p) (%lu)\n", g_memory_brk, g_memory_end,
+	 (g_memory_end - g_memory_begin) / getpagesize());
 }
 
