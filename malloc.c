@@ -5,7 +5,7 @@
 ** Login   <ignati_i@epitech.net>
 ** 
 ** Started on  Thu Jan 31 13:15:48 2013 ivan ignatiev
-** Last update Sun Feb 10 16:12:40 2013 ivan ignatiev
+** Last update Sun Feb 10 16:36:48 2013 ivan ignatiev
 */
 
 #include		"static.h"
@@ -213,10 +213,47 @@ void			*calloc(size_t num, size_t size)
   return (addr);
 }
 
+static void		*realloc_same_place(t_malloc_head *p, size_t size)
+{
+  MALLOC_LOCK();
+  malloc_fragment(p->addr, &size);
+  p->size_next = size;
+  MALLOC_UNLOCK();
+  return (p->addr);
+}
+
+static void		*realloc_edge(t_malloc_head *p, size_t size)
+{
+  MALLOC_LOCK();
+  if (malloc_edges( p->addr,  size + _HEADER_SIZE ) )
+    {
+      p->size_next = size;
+      if ( p->addr + size + _HEADER_SIZE > g_memory_brk)
+	g_memory_brk = p->addr + size + _HEADER_SIZE;
+      MALLOC_UNLOCK();
+      return (p->addr);
+    }
+  MALLOC_UNLOCK();
+  return (NULL);
+}
+
+static void		*realloc_new(t_malloc_head *p, size_t size)
+{
+  void			*addr;
+
+  if ((addr = malloc(size)) != NULL)
+    {
+      malloc_memcpy(addr, p->addr, p->size_next);
+      if (p->addr != addr)
+	free(p->addr);
+      return (addr);
+    }
+  return (addr);
+}
+
 void			*realloc(void *ptr, size_t size)
 {
   t_malloc_head		*p;
-  void			*addr;
 
   size = malloc_align(size, MALLOC_BOUNDARY);
   if (ptr == NULL)
@@ -229,36 +266,16 @@ void			*realloc(void *ptr, size_t size)
 	  return (NULL);
 	}
       if (p->size_next >= size)
-	{
-	  MALLOC_LOCK();
-	  malloc_fragment(p->addr, &size);
-	  p->size_next = size;
-	  MALLOC_UNLOCK();
-	  return (ptr);
-	}
+	return (realloc_same_place(p, size));
       else if (malloc_get_info( malloc_goto_next(p) ) == NULL)
-	{
-	  MALLOC_LOCK();
-	  if (malloc_edges( p->addr,  size + _HEADER_SIZE ) )
-	    {
-	      p->size_next = size;
-	      if ( p->addr + size + _HEADER_SIZE > g_memory_brk)
-		g_memory_brk = p->addr + size + _HEADER_SIZE;
-	      MALLOC_UNLOCK();
-	      return (ptr);
-	    }
-	  MALLOC_UNLOCK();
-	}
-      else if ((addr = malloc(size)) != NULL)
-	{
-	  malloc_memcpy(addr, ptr, p->size_next);
-	  if (ptr != addr)
-	    free(ptr);
-	  return (addr);
-	}
+	return (realloc_edge(p, size));
+      else
+	return (realloc_new(p, size));
     }
   return (NULL);
 }
+
+
 
 void			*memalign(size_t boundary, size_t size)
 {
@@ -289,9 +306,7 @@ void			*memalign(size_t boundary, size_t size)
   if (delta_size > (ssize_t)(2 * _HEADER_SIZE))
     {
       if (malloc_edges(addr, (size_t) delta_size))
-	{
-	  malloc_put_info(addr, 0, (size_t) delta_size, prev_size);
-	}
+	malloc_put_info(addr, 0, (size_t) delta_size, prev_size);
       else
 	{
 	  MALLOC_UNLOCK();
@@ -385,11 +400,11 @@ void			free(void *ptr)
   MALLOC_UNLOCK();
 }
 
-void			show_alloc_mem_detail()
+void			show_alloc_mem()
 {
   t_malloc_head		*next;
 
-  printf(stdout, "break : %p\n", g_memory_end);
+  printf("break : %p\n", g_memory_end);
   next = g_memory_begin;
   while ((next = malloc_get_info(next)) != NULL)
     {
@@ -407,7 +422,7 @@ void			show_alloc_mem_detail()
 {
   t_malloc_head		*next;
 
-  printf(stdout, "begin : %p\n", g_memory_begin);
+  printf("begin : %p\n", g_memory_begin);
   next = g_memory_begin;
   while ((next = malloc_get_info(next)) != NULL)
     {
